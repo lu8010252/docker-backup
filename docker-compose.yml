@@ -1,0 +1,24 @@
+services:
+  docker-backup:
+    build: .
+    container_name: docker-backup
+    restart: unless-stopped
+    ports:
+      - "8800:8800"
+    environment:
+      - AUTH_USER=CHANGE_ME          # 务必修改
+      - AUTH_PASS=CHANGE_ME      # 务必修改
+      - TZ=Asia/Shanghai
+      - NOTIFY_URL=CHANGE_ME   # 通知默认地址,页面「设置→通知」里也能改
+    # ---- 可选「宿主机模式」: 还原时可选任意宿主机路径,不用再逐个挂载 ----
+    # privileged: true
+    # pid: host
+    # (同时在 environment 里加: - HOST_BACKUP_DIR=/opt/docker-backups ,必须与下面 /backups 左边的路径一致)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config:/config                       # 设置保存位置
+      - /opt/docker-backups:/backups           # 备份输出目录(左边改成你要的位置)
+      # 下面的路径必须“宿主机路径 = 容器内路径”,应用的数据在哪就挂哪:
+      - /opt:/opt
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+      # - /data:/data                          # 你的个人应用若放在其它目录,照此添加

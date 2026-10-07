@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Docker 应用备份</title>
+<script>try{var t=localStorage.getItem("ap_th");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--card-rgb:255 255 255;--ink:#16242b;--mute:#64737b;--line:#e2e8eb;--ac:#0e6673;--soft:#e3f1f3;--warn:#b4442c;--ok:#2a8a57;--code:#f0f3f5;
+--tr:.5;--blur:28px;--sat:180%;--glass:rgb(var(--card-rgb)/calc(1 - var(--tr)));--gline:rgb(255 255 255/.6);--hov:rgb(0 0 0/.045);
+--b1:rgba(34,211,238,.5);--b2:rgba(244,114,182,.42);--b3:rgba(129,140,248,.5);color-scheme:light}
+:root[data-theme=dark]{--bg:#11181b;--card:#182125;--card-rgb:24 33 37;--ink:#e4ecef;--mute:#8b9aa1;--line:#28353a;--ac:#4fb3c2;--soft:#1c3238;--warn:#e58a72;--ok:#5cc58a;--code:#1f2b30;
+--gline:rgb(255 255 255/.12);--hov:rgb(255 255 255/.06);
+--b1:rgba(13,148,136,.5);--b2:rgba(147,51,234,.42);--b3:rgba(37,99,235,.5);color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.6 "PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif}
+.top{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:0 24px;flex-wrap:wrap}
+.brand{font-weight:600;font-size:16px;display:flex;align-items:center;gap:8px;padding:12px 0}
+.brand svg{color:var(--ac)}
+nav{display:flex;gap:4px}
+nav button{background:none;border:0;border-bottom:2px solid transparent;color:var(--mute);font:inherit;padding:14px 12px 12px;cursor:pointer}
+nav button.on{color:var(--ink);border-color:var(--ac);font-weight:500}
+.sp{flex:1}
+select,input[type=text],input[type=search],input[type=time],input[type=password],textarea,button.b{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 10px}
+input[type=search]{-webkit-appearance:none;appearance:none}
+button.ic{display:flex;align-items:center;padding:6px 8px;line-height:0}.ic svg{width:18px;height:18px}
+button.b{cursor:pointer}button.b:hover{border-color:var(--ac)}
+button.p{background:var(--ac);border-color:var(--ac);color:#fff}button.p:hover{opacity:.9}
+button.d{color:var(--warn)}
+:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+.chip{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--mute);background:var(--code);border-radius:99px;padding:3px 12px;cursor:pointer;max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mute);flex:none}
+.chip.run{color:var(--ac);background:var(--soft)}.chip.run .dot{background:var(--ac);animation:pl 1.2s infinite}
+@keyframes pl{50%{opacity:.25}}@media(prefers-reduced-motion:reduce){.chip.run .dot{animation:none}}
+main{max-width:1120px;margin:0 auto;padding:20px 24px 60px}
+.hide{display:none}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px}
+.stat small{color:var(--mute);display:block;font-size:12.5px}.stat b{font-size:20px;font-weight:600}
+.meter{height:5px;background:var(--code);border-radius:3px;margin-top:6px;overflow:hidden}.meter i{display:block;height:100%;background:var(--ac)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.bar label{color:var(--mute);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow-x:auto;margin-bottom:16px}
+.card.pad{padding:16px 20px}
+.card h3{margin:0 0 4px;font-size:15px}.card p.h{margin:0 0 12px;color:var(--mute);font-size:13px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:500;font-size:12.5px;background:var(--bg)}
+tr:last-child td{border:0}tbody tr:hover{background:var(--bg)}
+small.m{color:var(--mute);display:block;font-size:12.5px;word-break:break-all}
+.tag{font-size:12px;padding:1px 8px;border-radius:99px;background:var(--code);color:var(--mute);white-space:nowrap}
+.tag.inc{background:var(--soft);color:var(--ac)}.tag.ok{background:var(--soft);color:var(--ok)}.tag.err{color:var(--warn);background:var(--code)}
+.st{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--mute);margin-right:5px}.st.r{background:var(--ok)}
+.empty{padding:36px;text-align:center;color:var(--mute)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+label.f{display:block;margin:0 0 14px}label.f>span{display:block;font-weight:500;margin-bottom:3px}
+label.f small{display:block;color:var(--mute);font-size:12.5px;margin-top:2px}
+textarea{width:100%;min-height:64px;font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace}
+input[type=text],input[type=password]{width:100%}
+.days label{margin-right:10px;font-weight:400}
+.savebar{position:sticky;bottom:0;background:var(--bg);padding:12px 0;display:flex;gap:12px;align-items:center}
+pre.lg{margin:0;padding:10px 14px;background:var(--code);font:12.5px/1.55 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-all;max-height:340px;overflow:auto}
+details{border-bottom:1px solid var(--line)}details:last-child{border:0}
+summary{padding:10px 14px;cursor:pointer;display:flex;gap:10px;align-items:center;list-style:none}
+summary::-webkit-details-marker{display:none}summary span.t{flex:1}summary small{color:var(--mute)}
+dialog{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;width:min(680px,94vw);padding:22px}
+dialog::backdrop{background:rgba(0,0,0,.45)}dialog h3{margin:0}
+.mrow{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin:8px 0}
+.mrow code{background:var(--code);padding:4px 8px;border-radius:5px;font-size:12.5px;word-break:break-all}
+#toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;z-index:20}
+.toast{background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:13.5px;box-shadow:0 4px 14px rgba(0,0,0,.2);max-width:360px}
+.toast.ok{background:var(--ok);color:#fff}.toast.err{background:var(--warn);color:#fff}
+/* 设置页:顶部二级标签 + 分组行 */
+.sn{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.sn::-webkit-scrollbar{display:none}
+.sn button{background:none;border:0;border-bottom:2px solid transparent;color:var(--mute);font:inherit;padding:9px 16px;cursor:pointer;white-space:nowrap}
+.sn button:hover{color:var(--ink)}
+.sn button.on{color:var(--ac);border-color:var(--ac);font-weight:500}
+.sec{display:none}.sec.on{display:block}
+.grp{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:16px;overflow:hidden}
+.grp>header{padding:14px 20px 12px}
+.grp>header h3{margin:0;font-size:15px}
+.grp>header p{margin:2px 0 0;color:var(--mute);font-size:13px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:6px 28px;padding:14px 20px;border-top:1px solid var(--line);align-items:start}
+.row.v{grid-template-columns:1fr}
+.row .k b{display:block;font-weight:500}
+.row .k small{display:block;color:var(--mute);font-size:12.5px;margin-top:2px}
+.row .v2{min-width:0}
+.savebar.hide{display:none}
+@media(max-width:760px){.row{grid-template-columns:1fr}}
+/* 毛玻璃:顶栏/统计卡/表格卡/设置分组/弹窗/保存栏 */
+.top,.stat,.card,.grp,dialog,.savebar{background:var(--glass);-webkit-backdrop-filter:blur(var(--blur)) saturate(var(--sat));backdrop-filter:blur(var(--blur)) saturate(var(--sat));border-color:var(--gline)}
+.savebar{border:1px solid var(--gline);border-radius:10px;padding:12px 16px}
+th{background:var(--hov)}tbody tr:hover{background:var(--hov)}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+background:radial-gradient(38vw 38vw at 12% 8%,var(--b1),transparent 70%),radial-gradient(34vw 34vw at 88% 22%,var(--b2),transparent 70%),radial-gradient(42vw 42vw at 55% 95%,var(--b3),transparent 70%)}
+.sws{display:flex;flex-wrap:wrap;gap:10px}
+.sw{width:76px;height:52px;border-radius:10px;border:2px solid var(--line);cursor:pointer;position:relative;padding:0;overflow:hidden;background:var(--card);font:inherit}
+.sw.on{border-color:var(--ac)}.sw:hover{border-color:var(--ac)}
+.sw span{position:absolute;left:0;right:0;bottom:0;font-size:11.5px;line-height:18px;text-align:center;background:var(--glass);color:var(--ink);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.sw.dot{width:40px;height:40px;border-radius:50%;border-width:3px}
+.sw.dot.on{box-shadow:0 0 0 2px var(--card) inset}
+.rg{display:flex;align-items:center;gap:12px}.rg input{flex:1}.rg output{width:52px;text-align:right;color:var(--mute)}
+</style></head><body>
+<header class="top">
+ <div class="brand"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/></svg>Docker 应用备份</div>
+ <nav><button data-t="apps" class="on">应用</button><button data-t="bk">备份</button><button data-t="log">日志</button><button data-t="set">设置</button></nav>
+ <span class="sp"></span>
+ <select id="srv" onchange="switchSrv()" title="切换服务器"><option value="">本机</option></select>
+ <div id="chip" class="chip" onclick="go('log')"><i class="dot"></i><span id="chipt">空闲</span></div>
+ <button id="thm" class="b ic" onclick="toggleTheme()" title="切换外观" aria-label="切换浅色/深色"></button>
+</header>
+<main>
+<section id="p_apps">
+ <div class="stats" id="stats"></div>
+ <div class="bar"><input type="search" id="q" name="app-filter" autocomplete="off" autocapitalize="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" placeholder="搜索应用/镜像" oninput="renderApps()" style="width:200px">
+  <button class="b p" onclick="backup('auto')">备份所选</button><button class="b" onclick="backup('full')">强制完整备份</button>
+  <button class="b" onclick="exportSel('source')" title="只含 compose/配置/代码,不含数据,密码已脱敏,可直接分享">导出源文件</button><button class="b" onclick="exportSel('data')" title="只含挂载的数据目录和命名卷,下载为 .tar.gz">导出数据</button>
+  <label><input type="checkbox" id="stop"> 备份时临时停止容器(数据库建议勾选)</label><span class="sp"></span>
+  <button class="b" onclick="loadApps()">重新扫描</button></div>
+ <div class="card"><table><thead><tr><th style="width:36px"><input type="checkbox" onchange="document.querySelectorAll('.ck').forEach(c=>c.checked=this.checked)"></th><th>应用</th><th>类型 <small class="m" style="display:inline">(决定是否备份镜像)</small></th><th>备份范围</th><th>容器</th><th>上次备份</th></tr></thead><tbody id="ab"></tbody></table></div>
+</section>
+<section id="p_bk" class="hide">
+ <details class="card pad"><summary style="padding:0"><b>增量备份怎么用?</b><small>(点开查看)</small></summary>
+  <div style="margin-top:10px;font-size:13.5px;line-height:1.75">
+   <p style="margin:0 0 6px">「增量」只存<b>上一次备份之后新增/修改的文件</b>,单独解开是不完整的,必须配合它所属的「完整」备份(增量下面写着“基于 xxx”)。</p>
+   <p style="margin:0 0 6px"><b>在本页还原:</b>点想回到的那个时间点的「还原」即可,程序会自动先解完整备份,再按顺序叠加到这个时间点的所有增量。</p>
+   <p style="margin:0 0 6px"><b>下载带走:</b>保持勾选「下载时附带还原所需的完整备份/前置增量」,下载下来的包里就有完整备份和之前的全部增量。</p>
+   <p style="margin:0 0 6px"><b>不用本程序还原:</b>把同一个应用的所有时间戳文件夹放在同一目录,root 运行 <code>sh 时间戳/restore.sh</code>(会自动按顺序解压);或手动:先 <code>tar -xzpf 完整/data.tar.gz -C /</code>,再按时间顺序对每个增量执行同样的命令。</p>
+   <p style="margin:0;color:var(--mute)">注意:删除完整备份会连带删除依赖它的增量;还原不会删除“备份后被你删掉的文件”。只想要数据文件?去「应用」页用「导出数据」。</p>
+  </div></details>
+ <div class="bar"><input type="search" id="bq" name="bk-filter" autocomplete="off" autocapitalize="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')" placeholder="筛选应用" oninput="renderBk()" style="width:170px">
+  <label><input type="checkbox" id="bchain" checked onchange="updSel()"> 下载时附带还原所需的完整备份/前置增量</label><span class="sp"></span>
+  <span id="bsel" style="color:var(--mute);font-size:13px"></span>
+  <button class="b p" onclick="dlSel()">批量下载</button><button class="b d" onclick="delSel()">批量删除</button></div>
+ <div class="card"><table><thead><tr><th style="width:36px"><input type="checkbox" id="bkall" onchange="selAll(this.checked)"></th><th>应用</th><th>时间点</th><th>大小</th><th></th></tr></thead><tbody id="bb"></tbody></table></div></section>
+<section id="p_log" class="hide">
+ <div class="card hide" id="live"><div style="padding:10px 14px;font-weight:500" id="livet"></div><pre class="lg" id="livel"></pre></div>
+ <div class="bar"><span style="color:var(--mute)" id="hn"></span><span class="sp"></span><button class="b" id="hclr" onclick="clearHist(this)">清空日志</button></div>
+ <div class="card" id="hist"></div>
+</section>
+<section id="p_set" class="hide">
+ <div id="remnote" class="card pad hide" style="background:var(--soft)"></div>
+ <div class="sn">
+  <button data-s="bk" class="on" onclick="setSec('bk')">备份与保留</button>
+  <button data-s="auto" onclick="setSec('auto')">自动备份</button>
+  <button data-s="rule" onclick="setSec('rule')">识别与排除</button>
+  <button data-s="nt" onclick="setSec('nt')">通知</button>
+  <button data-s="sv" onclick="setSec('sv')">服务器</button>
+  <button data-s="ap" onclick="setSec('ap')">外观</button>
+ </div>
+ <div class="sec on" id="sec_bk">
+  <div class="grp"><header><h3>备份</h3><p>增量备份可以让每次同步到网盘的文件更小</p></header>
+   <div class="row"><div class="k"><b>备份目录</b><small>容器内路径,默认 /backups(宿主机路径在 docker-compose.yml 里配置)</small></div><div class="v2"><input type="text" id="s_backup_dir"></div></div>
+   <div class="row"><div class="k"><b>完整备份间隔</b><small>每隔几次增量后做一次完整备份,0 = 每次都完整备份</small></div><div class="v2"><input type="text" id="s_full_every" style="width:100px"></div></div>
+  </div>
+  <div class="grp"><header><h3>保留策略</h3><p>超出的旧数据会自动清理</p></header>
+   <div class="row"><div class="k"><b>保留备份组数</b><small>一组 = 一个完整备份 + 它之后的增量;0 = 不清理</small></div><div class="v2"><input type="text" id="s_keep_full" style="width:100px"></div></div>
+   <div class="row"><div class="k"><b>保留日志条数</b><small>0 = 不清理</small></div><div class="v2"><input type="text" id="s_log_keep" style="width:100px"></div></div>
+  </div>
+ </div>
+ <div class="sec" id="sec_auto">
+  <div class="grp"><header><h3>自动备份</h3><p>到点自动执行增量备份</p></header>
+   <div class="row"><div class="k"><b>启用自动备份</b></div><div class="v2"><input type="checkbox" id="s_schedule_enabled"></div></div>
+   <div class="row"><div class="k"><b>执行时间</b></div><div class="v2"><input type="time" id="s_schedule_time"></div></div>
+   <div class="row"><div class="k"><b>执行日期</b></div><div class="v2 days" id="days"></div></div>
+   <div class="row"><div class="k"><b>临时停止容器</b><small>自动备份时先停止容器,数据库建议开启</small></div><div class="v2"><input type="checkbox" id="s_schedule_stop"></div></div>
+   <div class="row v"><div class="k"><b>自动备份的应用</b><small>每行一个应用名,留空 = 全部</small></div><div class="v2"><textarea id="s_schedule_apps"></textarea></div></div>
+  </div>
+ </div>
+ <div class="sec" id="sec_rule">
+  <div class="grp"><header><h3>镜像识别</h3><p>命中以下路径的应用不备份镜像</p></header>
+   <div class="row v"><div class="k"><b>应用商店路径片段</b></div><div class="v2"><textarea id="s_store_paths"></textarea></div></div>
+   <div class="row v"><div class="k"><b>编排路径片段</b></div><div class="v2"><textarea id="s_compose_paths"></textarea></div></div>
+  </div>
+  <div class="grp"><header><h3>排除与扫描</h3><p>决定哪些目录不备份、去哪里找项目</p></header>
+   <div class="row v"><div class="k"><b>全局排除路径</b><small>支持通配符,例如 /data/sync*</small></div><div class="v2"><textarea id="s_excludes"></textarea></div></div>
+   <div class="row v"><div class="k"><b>按镜像排除挂载</b><small>格式 镜像关键字:容器内路径,例如 syncthing:/data*、mysql:/var/lib/mysql</small></div><div class="v2"><textarea id="s_mount_rules"></textarea></div></div>
+   <div class="row v"><div class="k"><b>额外扫描目录</b><small>每行一个,会查找其中的 compose 文件,未运行的项目也能备份</small></div><div class="v2"><textarea id="s_scan_dirs"></textarea></div></div>
+  </div>
+ </div>
+ <div class="sec" id="sec_ap">
+  <div class="grp"><header><h3>外观模式</h3><p>右上角的按钮在「自动 / 浅色 / 深色」之间切换；自动就是你在这里选的日出日落或跟随时间</p></header>
+   <div class="row"><div class="k"><b>模式</b></div><div class="v2"><select id="a_mode" onchange="apIn()"><option value="sun">日出日落(白天浅色、夜里深色)</option><option value="auto">跟随时间(自己定几点切换)</option><option value="light">始终浅色</option><option value="dark">始终深色</option></select></div></div>
+  </div>
+  <div class="grp"><header><h3>日出日落</h3><p>按你所在位置每天的日出、日落时间切换，在浏览器里直接计算，不联网。仅「日出日落」模式生效。</p></header>
+   <div class="row"><div class="k"><b>位置</b><small>纬度,经度，例如 32.97,117.19</small></div><div class="v2"><div style="display:flex;gap:8px"><input type="text" id="a_geo" placeholder="纬度,经度" autocomplete="off" oninput="apIn()"><button class="b" type="button" onclick="apLocate()">定位</button></div><small class="m" id="a_sunt" style="margin-top:6px"></small></div></div>
+  </div>
+  <div class="grp"><header><h3>主题切换时间</h3><p>按时间自动切换，可跨午夜。每 30 秒检查一次，无需刷新。「跟随时间」模式生效；「日出日落」没有填位置时也按这两个时间。</p></header>
+   <div class="row"><div class="k"><b>切换到深色</b></div><div class="v2"><input type="time" id="a_dark" oninput="apIn()"></div></div>
+   <div class="row"><div class="k"><b>切换回浅色</b></div><div class="v2"><input type="time" id="a_light" oninput="apIn()"></div></div>
+  </div>
+  <div class="grp"><header><h3>背景配色</h3><p>页面背后那几团柔和的色块，浅色和深色下各有一套</p></header>
+   <div class="row v"><div class="sws" id="a_bg"></div></div>
+  </div>
+  <div class="grp"><header><h3>主题色</h3><p>按钮、选中标签、进度条用的颜色</p></header>
+   <div class="row v"><div class="sws" id="a_ac"></div></div>
+  </div>
+  <div class="grp"><header><h3>毛玻璃</h3><p>拖动即时预览，此页设置自动保存（仅保存在当前浏览器）</p></header>
+   <div class="row"><div class="k"><b>透明度</b><small>0–90%</small></div><div class="v2 rg"><input type="range" id="a_tr" min="0" max="90" step="1" oninput="apIn()"><output id="a_trv"></output></div></div>
+   <div class="row"><div class="k"><b>模糊强度</b><small>0–48px</small></div><div class="v2 rg"><input type="range" id="a_blur" min="0" max="48" step="1" oninput="apIn()"><output id="a_blurv"></output></div></div>
+   <div class="row v"><div><button class="b" onclick="apReset()">恢复默认（晴空配色、青色主题色、透明度 50%、模糊 28px）</button></div></div>
+  </div>
+ </div>
+ <div class="sec" id="sec_nt">
+  <div class="grp"><header><h3>ntfy 通知</h3><p>备份、还原、校验(含自动备份)结束后推送到手机。每台服务器各自设置。</p></header>
+   <div class="row"><div class="k"><b>启用通知</b></div><div class="v2"><input type="checkbox" id="s_notify_enabled"></div></div>
+   <div class="row"><div class="k"><b>通知地址</b><small>ntfy 主题完整地址,如 https://ntfy.example.com/notice</small></div><div class="v2"><input type="text" id="s_notify_url" name="ntfy-url" autocomplete="off" placeholder="https://ntfy.example.com/主题"></div></div>
+   <div class="row"><div class="k"><b>何时通知</b></div><div class="v2"><select id="s_notify_on"><option value="all">成功和失败都通知</option><option value="fail">只通知失败</option></select></div></div>
+   <div class="row"><div class="k"><b>服务器名称</b><small>显示在通知标题里,多台服务器时用来区分;留空 = 容器主机名</small></div><div class="v2"><input type="text" id="s_notify_name" name="ntfy-name" autocomplete="off" placeholder="如 春川主服务器"></div></div>
+   <div class="row"><div class="k"><b>访问令牌(可选)</b><small>ntfy 开了权限控制才需要。留空 = 保持不变,填 - 清除</small></div><div class="v2"><input type="password" id="s_notify_token" name="ntfy-token" autocomplete="new-password"></div></div>
+   <div class="row v"><div><button class="b" onclick="testNotify(this)">发送测试通知</button> <small class="m" style="display:inline">用当前表单里的内容测试,不用先保存</small></div></div>
+  </div>
+ </div>
+ <div class="sec" id="sec_sv">
+  <div class="grp"><header><h3>服务器管理</h3><p>在其它服务器上也部署本程序后,可在这里添加,顶部下拉框切换后即可统一备份/还原/改设置。此列表只保存在本机。</p></header>
+   <div class="row v"><div id="svl"></div></div>
+   <div class="row v"><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+    <input type="text" id="n_name" name="srv-name" autocomplete="off" placeholder="名称,如 甲骨文"><input type="text" id="n_url" name="srv-url" autocomplete="off" placeholder="http://IP:8800">
+    <input type="text" id="n_user" name="srv-user" autocomplete="off" placeholder="用户名"><input type="password" id="n_pass" name="srv-pass" autocomplete="new-password" placeholder="密码"></div>
+    <p style="margin:12px 0 0"><button class="b p" onclick="addSrv()">添加并测试连接</button> <small class="m" style="display:inline">密码以明文保存在本机 /config,请只在可信网络使用</small></p></div>
+  </div>
+ </div>
+ <div class="savebar" id="savebar"><button class="b p" onclick="saveSet()">保存设置</button><small class="m">保存后立即生效</small></div>
+</section>
+</main>
+<dialog id="rd"><h3 id="rt">还原</h3><small class="m" id="rs"></small>
+ <p style="margin:14px 0 4px;font-weight:500">还原位置</p>
+ <small class="m">左边是备份里的原路径,右边填要还原到的新路径,留空就还原回原位置。compose 和 .env 里的旧路径会自动替换。</small>
+ <div id="rrows"></div>
+ <div class="bar" style="margin-top:10px"><input type="text" id="r_base" placeholder="统一放到目录,如 /vol1/docker" style="flex:1"><button class="b" onclick="fillBase()">一键填入</button></div>
+ <p style="margin:6px 0"><label><input type="checkbox" id="r_img" checked> 加载镜像(如有)</label> &nbsp; <label><input type="checkbox" id="r_data" checked> 还原数据</label></p>
+ <small class="m" id="rh"></small>
+ <p style="margin:16px 0 0;text-align:right"><button class="b" onclick="$('rd').close()">取消</button> <button class="b p" onclick="doRestore()">开始还原</button></p></dialog>
+<div id="toasts"></div>
+<script>
+const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let CUR='',S={},BK=[],APPS=[],SV=[],HOST=false,tab='apps',wasRun=false,RD=null;
+const LK=['scan_dirs','store_paths','compose_paths','excludes','mount_rules','schedule_apps'];
+const SC={all:'应用+数据',app:'只备份应用',data:'只备份数据'};
+const KN={store:'应用商店',compose:'编排',personal:'个人(备份镜像)'};
+const sz=n=>n>=1e9?(n/1e9).toFixed(2)+' GB':n>=1e6?(n/1e6).toFixed(1)+' MB':(n/1e3).toFixed(0)+' KB';
+const fm=t=>t?t.replace(/^(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d).*/,'$1-$2-$3 $4:$5'):'';
+function toast(m,t){const e=document.createElement('div');e.className='toast '+(t||'');e.textContent=m;$('toasts').append(e);setTimeout(()=>e.remove(),t=='err'?5000:2200)}
+async function api(p,b,o={}){try{const r=await fetch((CUR&&!o.local?'/api/remote/'+CUR:'/api')+p,b===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+ const t=await r.text();let j=null;try{j=JSON.parse(t)}catch{}
+ if(!r.ok)throw new Error((j&&j.error)||(r.status==401?'认证失败':t.slice(0,80)||r.status));return j}catch(e){if(!o.quiet)toast(e.message,'err');return null}}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>go(b.dataset.t));
+function go(t){tab=t;document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.t==t));
+ ['apps','bk','log','set'].forEach(x=>$('p_'+x).classList.toggle('hide',x!=t));
+ ({apps:loadApps,bk:loadBk,log:loadLog,set:loadSet})[t]()}
+/* ---- 应用 ---- */
+async function loadApps(){const [s,a,st]=await Promise.all([api('/settings'),api('/apps'),api('/stats')]);
+ if(!a)return;S=s||S;APPS=a;
+ const days=S.schedule_days||[],dt=days.length==7?'每天':'周'+days.map(d=>'一二三四五六日'[d-1]).join('、');
+ const used=st.total?Math.round((1-st.free/st.total)*100):0;
+ $('stats').innerHTML=`<div class="stat"><small>应用</small><b>${a.length}</b> <small style="display:inline">运行中 ${a.filter(x=>x.containers.some(c=>c.state=='running')).length}</small></div>
+ <div class="stat"><small>备份数量</small><b>${st.backups}</b></div><div class="stat"><small>备份占用</small><b>${sz(st.size)}</b></div>
+ <div class="stat"><small>磁盘剩余</small><b>${sz(st.free)}</b><div class="meter"><i style="width:${used}%"></i></div></div>
+ <div class="stat"><small>自动备份</small><b style="font-size:16px">${S.schedule_enabled?dt+' '+S.schedule_time:'未启用'}</b></div>`;
+ renderApps()}
+function renderApps(){const q=$('q').value.trim().toLowerCase();
+ const r=APPS.filter(x=>!q||x.name.toLowerCase().includes(q)||x.containers.some(c=>c.image.toLowerCase().includes(q)));
+ $('ab').innerHTML=r.map(x=>`<tr><td><input type="checkbox" class="ck" value="${esc(x.name)}"></td>
+ <td>${esc(x.name)}<small class="m">${esc(x.workdir||'docker run')}</small></td>
+ <td><select data-n="${esc(x.name)}" onchange="setKind(this.dataset.n,this.value)">${Object.entries(KN).map(([k,v])=>`<option value="${k}" ${k==x.kind?'selected':''}>${v}</option>`).join('')}</select></td>
+ <td><select data-n="${esc(x.name)}" onchange="setScope(this.dataset.n,this.value)">${Object.entries(SC).map(([k,v])=>`<option value="${k}" ${k==(x.scope||'all')?'selected':''}>${v}</option>`).join('')}</select></td>
+ <td>${x.containers.map(c=>`<div><i class="st ${c.state=='running'?'r':''}"></i>${esc(c.name)}<small class="m">${esc(c.image)}</small></div>`).join('')||'<small class="m">未创建(仅备份文件)</small>'}</td>
+ <td>${x.last?fm(x.last):'<small class="m">从未</small>'}</td></tr>`).join('')||'<tr><td colspan=6 class="empty">没有发现应用,请检查是否挂载了 docker.sock</td></tr>'}
+async function setKind(n,k){S.overrides=S.overrides||{};S.overrides[n]=k;await api('/settings',{overrides:S.overrides});toast('已保存类型','ok')}
+async function setScope(n,v){S.scope=S.scope||{};if(v=='all')delete S.scope[n];else S.scope[n]=v;await api('/settings',{scope:S.scope});
+ toast(v=='app'?'已设为只备份应用(不含数据目录/卷)':v=='data'?'已设为只备份数据(不含 compose/配置)':'已设为应用+数据','ok')}
+async function backup(mode){const names=[...document.querySelectorAll('.ck:checked')].map(i=>i.value);
+ if(!names.length)return toast('请先勾选要备份的应用');
+ const r=await api('/backup',{names,mode,stop:$('stop').checked});if(r)toast(r.ok?'已开始备份,进度见右上角或日志页':'已有任务在运行',r.ok?'ok':'err');tick()}
+/* ---- 导出: 源文件(可分享) / 仅数据 ---- */
+async function exportSel(kind){const names=[...document.querySelectorAll('.ck:checked')].map(i=>i.value);
+ if(!names.length)return toast('请先勾选要导出的应用');
+ const stop=kind=='data'&&$('stop').checked;
+ if(stop&&!confirm('已勾选「临时停止容器」:导出期间这些应用的容器会一直停着,下载完成(或取消)后才会自动启动。\n确认继续?'))return;
+ const q='/export/'+kind+'?names='+encodeURIComponent(names.join(','))+(stop?'&stop=1':'');
+ const c=await api(q+'&check=1');if(!c)return;   // 先检查,出错时给提示而不是下载一个错误文件
+ const a=document.createElement('a');a.href=(CUR?'/api/remote/'+CUR:'/api')+q;document.body.append(a);a.click();a.remove();
+ toast(kind=='data'?`开始导出数据: ${c.count} 个目录(.tar.gz)`:'开始导出源文件(密码/令牌已脱敏,分享前仍请自己再检查)','ok')}
+/* ---- 备份 ---- */
+let SEL=new Set();
+const bkey=x=>x.folder+'/'+x.ts;
+async function loadBk(){const b=await api('/backups');if(!b)return;BK=b;
+ const info=await api('/info',undefined,{quiet:true});HOST=!!(info&&info.host_mode);
+ const ks=new Set(b.map(bkey));SEL=new Set([...SEL].filter(k=>ks.has(k)));renderBk()}
+function renderBk(){const q=$('bq').value.trim().toLowerCase();
+ const rows=BK.map((x,i)=>[x,i]).filter(([x])=>!q||x.name.toLowerCase().includes(q));
+ $('bb').innerHTML=rows.map(([x,i])=>`<tr><td><input type="checkbox" class="bck" data-i="${i}" ${SEL.has(bkey(x))?'checked':''} onchange="selOne(this)"></td>
+ <td>${esc(x.name)}<small class="m">${KN[x.kind]}</small></td>
+ <td>${fm(x.ts)} <span class="tag ${x.type=='inc'?'inc':''}">${x.type=='inc'?'增量':'完整'}</span>${x.scope=='app'?' <span class="tag">仅应用</span>':x.scope=='data'?' <span class="tag">仅数据</span>':''}${x.type=='inc'?`<small class="m">基于 ${fm(x.base)}</small>`:''}</td>
+ <td>${sz(x.size)}<small class="m">${x.images.length?'含镜像 '+x.images.map(esc).join(', '):(x.type=='inc'?'':'不含镜像')}</small></td>
+ <td style="white-space:nowrap"><button class="b p" onclick="openRestore(${i})">还原</button> <button class="b" onclick="verify(${i})">校验</button> <button class="b" onclick="dlOne(${i})">下载</button> <button class="b d" onclick="del(this,${i})">删除</button></td></tr>`).join('')
+ ||'<tr><td colspan=5 class="empty">'+(BK.length?'没有匹配的备份':'还没有备份。把备份文件夹放进备份目录后,刷新本页即可看到。')+'</td></tr>';
+ syncAll();updSel()}
+function syncAll(){const c=[...document.querySelectorAll('.bck')];$('bkall').checked=c.length>0&&c.every(i=>i.checked)}
+function selOne(c){const k=bkey(BK[+c.dataset.i]);c.checked?SEL.add(k):SEL.delete(k);syncAll();updSel()}
+function selAll(v){document.querySelectorAll('.bck').forEach(c=>{c.checked=v;const k=bkey(BK[+c.dataset.i]);v?SEL.add(k):SEL.delete(k)});updSel()}
+// 前端估算:增量备份要能还原,需要它的完整备份和之前的增量(与服务器 chain_of 规则一致)
+const chainOf=x=>BK.filter(y=>y.folder==x.folder&&y.base==x.base&&y.ts<=x.ts);
+function selList(){const m=new Map(),want=$('bchain').checked;
+ BK.filter(x=>SEL.has(bkey(x))).forEach(x=>(want?chainOf(x):[x]).forEach(y=>m.set(bkey(y),y)));return [...m.values()]}
+function updSel(){const l=selList();$('bsel').textContent=SEL.size?`已选 ${SEL.size} 项,共 ${l.length} 个备份包,约 ${sz(l.reduce((a,x)=>a+x.size,0))}`:''}
+async function dl(keys){const q='/download?chain='+($('bchain').checked?1:0)+'&items='+encodeURIComponent(keys.join(','));
+ const c=await api(q+'&check=1');if(!c)return;   // 先校验,出错时给提示而不是下载一个错误文件
+ const a=document.createElement('a');a.href=(CUR?'/api/remote/'+CUR:'/api')+q;document.body.append(a);a.click();a.remove();
+ toast(`开始下载: ${c.count} 个备份包,约 ${sz(c.size)}`,'ok')}
+function dlOne(i){dl([bkey(BK[i])])}
+function dlSel(){if(!SEL.size)return toast('请先勾选要下载的备份');dl([...SEL])}
+async function delSel(){if(!SEL.size)return toast('请先勾选要删除的备份');
+ if(!confirm(`确认删除已选的 ${SEL.size} 个备份?\n删除某个完整备份时,依赖它的后续增量会一并删除,且无法恢复。`))return;
+ for(const x of BK.filter(x=>SEL.has(bkey(x))))await api('/delete',{folder:x.folder,ts:x.ts},{quiet:true});
+ SEL.clear();toast('已删除','ok');loadBk()}
+function del(btn,i){const x=BK[i];if(btn.dataset.arm){api('/delete',{folder:x.folder,ts:x.ts}).then(()=>{toast('已删除','ok');loadBk()});return}
+ btn.dataset.arm=1;btn.textContent=x.type=='inc'?'确认?(连同之后的增量)':'确认?(连同依赖它的增量)';
+ setTimeout(()=>{delete btn.dataset.arm;btn.textContent='删除'},3500)}
+async function verify(i){const x=BK[i];const r=await api('/verify',{folder:x.folder,ts:x.ts});if(r)toast(r.ok?'开始校验,结果见日志':'已有任务在运行',r.ok?'ok':'err');tick()}
+function openRestore(i){RD=BK[i];const x=RD;$('rt').textContent='还原 '+x.name;$('rs').textContent=`时间点 ${fm(x.ts)} · ${x.type=='inc'?'增量':'完整备份'}`;
+ $('rrows').innerHTML=(x.paths||[]).filter(Boolean).map(p=>{const v=p.startsWith('/var/lib/docker/volumes');
+  return `<div class="mrow"><code>${esc(p)}</code><span>→</span><input type="text" data-old="${esc(p)}" ${v?'disabled':''} placeholder="${v?'Docker 卷,保持原位':'留空 = 还原回原位置'}"></div>`}).join('');
+ $('r_base').value='';
+ $('rh').textContent=(x.type=='inc'?'会先解压完整备份,再依次叠加增量到这个时间点。':'')+'还原前会先停止同名容器,并覆盖目标里的同名文件。'+
+  (HOST?' 宿主机模式:新路径可以是宿主机上的任意路径。':' 新路径必须已挂载到本程序容器(宿主机路径=容器内路径),或在 docker-compose.yml 启用宿主机模式。');
+ $('rd').showModal()}
+function fillBase(){const b=$('r_base').value.trim().replace(/\/$/,'');if(!b)return toast('先填一个目录');
+ document.querySelectorAll('#rrows input:not([disabled])').forEach(i=>i.value=b+'/'+i.dataset.old.split('/').filter(Boolean).pop())}
+async function doRestore(){const maps=[...document.querySelectorAll('#rrows input')].filter(i=>i.value.trim()).map(i=>i.dataset.old+'='+i.value.trim());
+ const r=await api('/restore',{folder:RD.folder,ts:RD.ts,images:$('r_img').checked,data:$('r_data').checked,maps});
+ $('rd').close();if(r)toast(r.ok?'已开始还原,进度见日志':'已有任务在运行',r.ok?'ok':'err');tick()}
+/* ---- 日志 ---- */
+async function loadLog(){const h=await api('/history');if(!h)return;
+ $('hn').textContent=`共 ${h.length} 条,自动保留最近 ${S.log_keep||'全部'} 条`;
+ $('hist').innerHTML=h.map(x=>`<details><summary><span class="tag ${x.ok?'ok':'err'}">${x.ok?'成功':'有错误'}</span><span class="t">${esc(x.title)}</span><small>${esc(x.time)}</small></summary><pre class="lg">${esc(x.lines.join('\n'))}</pre></details>`).join('')||'<div class="empty">暂无日志</div>'}
+function clearHist(b){if(b.dataset.arm){api('/history/clear',{}).then(()=>{toast('已清空','ok');loadLog()});return}
+ b.dataset.arm=1;b.textContent='再点一次确认清空';setTimeout(()=>{delete b.dataset.arm;b.textContent='清空日志'},3000)}
+/* ---- 设置 ---- */
+function setSec(n){document.querySelectorAll('.sec').forEach(e=>e.classList.toggle('on',e.id=='sec_'+n));
+ document.querySelectorAll('.sn button').forEach(b=>b.classList.toggle('on',b.dataset.s==n));
+ $('savebar').classList.toggle('hide',n=='sv'||n=='ap')}
+async function loadSet(){const s=await api('/settings');if(!s)return;S=s;
+ $('remnote').classList.toggle('hide',!CUR);if(CUR)$('remnote').textContent='正在编辑服务器「'+(SV.find(v=>v.id==CUR)||{}).name+'」的设置';
+ $('s_backup_dir').value=S.backup_dir;LK.forEach(k=>$('s_'+k).value=(S[k]||[]).join('\n'));
+ $('s_full_every').value=S.full_every;$('s_keep_full').value=S.keep_full;$('s_log_keep').value=S.log_keep;
+ $('s_notify_enabled').checked=!!S.notify_enabled;$('s_notify_url').value=S.notify_url||'';$('s_notify_on').value=S.notify_on||'all';$('s_notify_name').value=S.notify_name||'';
+ $('s_notify_token').value='';$('s_notify_token').placeholder=S.notify_token_set?'已设置(留空保持不变)':'';
+ $('s_schedule_enabled').checked=S.schedule_enabled;$('s_schedule_time').value=S.schedule_time;$('s_schedule_stop').checked=S.schedule_stop;
+ $('days').innerHTML=['一','二','三','四','五','六','日'].map((d,i)=>`<label><input type="checkbox" class="day" value="${i+1}" ${S.schedule_days.includes(i+1)?'checked':''}> 周${d}</label>`).join('');
+ renderSrvList()}
+async function testNotify(btn){btn.disabled=true;
+ const r=await api('/notify/test',{url:$('s_notify_url').value.trim(),token:$('s_notify_token').value,name:$('s_notify_name').value.trim()});
+ btn.disabled=false;if(r)toast('测试通知已发送,请看手机','ok')}
+async function saveSet(){const b={backup_dir:$('s_backup_dir').value.trim()};
+ LK.forEach(k=>b[k]=$('s_'+k).value.split('\n').map(s=>s.trim()).filter(Boolean));
+ b.full_every=parseInt($('s_full_every').value)||0;b.keep_full=parseInt($('s_keep_full').value)||0;b.log_keep=parseInt($('s_log_keep').value)||0;
+ b.notify_enabled=$('s_notify_enabled').checked;b.notify_url=$('s_notify_url').value.trim();b.notify_on=$('s_notify_on').value;b.notify_name=$('s_notify_name').value.trim();b.notify_token=$('s_notify_token').value;
+ b.schedule_enabled=$('s_schedule_enabled').checked;b.schedule_time=$('s_schedule_time').value||'03:00';b.schedule_stop=$('s_schedule_stop').checked;
+ b.schedule_days=[...document.querySelectorAll('.day:checked')].map(i=>+i.value);
+ const r=await api('/settings',b);if(r){S=r;toast('已保存','ok')}}
+/* ---- 多服务器 ---- */
+async function loadServers(){SV=await api('/servers',undefined,{local:true,quiet:true})||[];
+ $('srv').innerHTML='<option value="">本机</option>'+SV.map(v=>`<option value="${v.id}" ${v.id==CUR?'selected':''}>${esc(v.name)}</option>`).join('');
+ $('srv').style.display=SV.length?'':'none';renderSrvList()}
+function renderSrvList(){$('svl').innerHTML=SV.length?SV.map(v=>`<div style="display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)"><b>${esc(v.name)}</b><small class="m" style="flex:1">${esc(v.url)}</small><button class="b d" data-id="${v.id}" onclick="delSrv(this)">删除</button></div>`).join(''):'<small class="m">还没有添加其它服务器</small>'}
+async function addSrv(){const b={name:$('n_name').value,url:$('n_url').value,user:$('n_user').value,pass:$('n_pass').value};
+ if(!b.url)return toast('请填写地址');const r=await api('/servers',b,{local:true});if(!r)return;
+ await loadServers();const old=CUR;CUR=r.id;const ok=await api('/info');CUR=old;
+ if(ok){toast('已添加,连接正常','ok');['n_name','n_url','n_user','n_pass'].forEach(i=>$(i).value='')}else toast('已添加,但连接失败,请检查地址和账号密码','err')}
+function delSrv(b){if(b.dataset.arm){api('/servers/delete',{id:b.dataset.id},{local:true}).then(()=>{if(CUR==b.dataset.id)CUR='';loadServers();toast('已删除','ok')});return}
+ b.dataset.arm=1;b.textContent='确认?';setTimeout(()=>{delete b.dataset.arm;b.textContent='删除'},3000)}
+function switchSrv(){CUR=$('srv').value;SEL.clear();toast('已切换到 '+($('srv').selectedOptions[0].text));go(tab)}
+/* ---- 任务状态 ---- */
+async function tick(){const j=await api('/job',undefined,{quiet:true});const c=$('chip');
+ if(!j){c.className='chip';$('chipt').textContent='无法连接';return}
+ c.className='chip'+(j.running?' run':'');
+ $('chipt').textContent=j.running?`${j.title||'任务'} · ${(j.log[j.log.length-1]||'').replace(/^\S+ /,'').slice(0,40)}`:'空闲';
+ $('live').classList.toggle('hide',!j.running);
+ if(j.running){$('livet').textContent=j.title;const l=$('livel');l.textContent=j.log.join('\n');l.scrollTop=l.scrollHeight}
+ if(wasRun&&!j.running){const bad=j.log.some(l=>l.replace(/^\S+ /,'').startsWith('错误'));
+  toast(bad?'任务完成,但有错误,请看日志':'任务完成',bad?'err':'ok');if(tab=='log')loadLog();if(tab=='bk')loadBk();if(tab=='apps')loadApps()}
+ wasRun=j.running}
+/* ---- 外观:按时间切换主题 + 毛玻璃 ---- */
+const AP_DEF={mode:'auto',dark_from:'18:00',light_from:'06:00',tr:50,blur:28,geo:'32.97,117.19',bg:'sky',ac:'teal'};
+let AP={...AP_DEF};
+try{Object.assign(AP,JSON.parse(localStorage.getItem('ap')||'{}'))}catch{}
+if(!['sun','auto','light','dark'].includes(AP.mode))AP.mode='auto';
+const tm=s=>{const [h,m]=String(s).split(':');return(+h||0)*60+(+m||0)};
+/* 日出日落:按经纬度在浏览器里直接算 */
+function sunTimes(lat,lon,date){
+ const R=Math.PI/180,DAY=864e5,J1970=2440588,J2000=2451545,E=R*23.4397,J0=.0009;
+ const toJ=d=>d.valueOf()/DAY-.5+J1970,fromJ=j=>new Date((j+.5-J1970)*DAY);
+ const lw=R*-lon,phi=R*lat,d=toJ(date)-J2000,n=Math.round(d-J0-lw/(2*Math.PI)),ds=J0+lw/(2*Math.PI)+n;
+ const M=R*(357.5291+.98560028*ds),C=R*(1.9148*Math.sin(M)+.02*Math.sin(2*M)+.0003*Math.sin(3*M)),L=M+C+R*102.9372+Math.PI;
+ const dec=Math.asin(Math.sin(E)*Math.sin(L)),Jn=J2000+ds+.0053*Math.sin(M)-.0069*Math.sin(2*L);
+ const w=Math.acos((Math.sin(R*-.833)-Math.sin(phi)*Math.sin(dec))/(Math.cos(phi)*Math.cos(dec)));
+ if(!isFinite(w))return null;
+ const a=J0+(w+lw)/(2*Math.PI)+n,Js=J2000+a+.0053*Math.sin(M)-.0069*Math.sin(2*L);
+ return{rise:fromJ(Jn-(Js-Jn)),set:fromJ(Js)}}
+function sunGeo(){const m=String(AP.geo||'').replace(/[，;；\s]+/g,',').split(',').map(Number);return m.length===2&&m.every(isFinite)&&Math.abs(m[0])<=90&&Math.abs(m[1])<=180?{lat:m[0],lon:m[1]}:null}
+function sunToday(){const g=sunGeo();if(!g)return null;const n=new Date(),t=sunTimes(g.lat,g.lon,new Date(n.getFullYear(),n.getMonth(),n.getDate(),12));return t&&isFinite(t.rise)&&isFinite(t.set)?t:null}
+function isDark(){if(AP.mode=='dark')return true;if(AP.mode=='light')return false;
+ if(AP.mode=='sun'){const t=sunToday();if(t){const n=new Date();return n<t.rise||n>t.set}}
+ const n=new Date(),m=n.getHours()*60+n.getMinutes(),d=tm(AP.dark_from),l=tm(AP.light_from);
+ return d==l?false:d<l?(m>=d&&m<l):(m>=d||m<l)}   // d>l 即跨午夜
+/* 背景配色(每套:[名称,浅色三团,深色三团]);晴空 = 原来的默认 */
+const BGP={
+ sky:['晴空',['rgba(34,211,238,.5)','rgba(244,114,182,.42)','rgba(129,140,248,.5)'],['rgba(13,148,136,.5)','rgba(147,51,234,.42)','rgba(37,99,235,.5)']],
+ aurora:['极光',['rgba(52,211,153,.5)','rgba(96,165,250,.45)','rgba(167,139,250,.45)'],['rgba(5,150,105,.5)','rgba(37,99,235,.45)','rgba(109,40,217,.42)']],
+ sunset:['晚霞',['rgba(251,146,60,.45)','rgba(244,114,182,.45)','rgba(167,139,250,.42)'],['rgba(194,65,12,.5)','rgba(190,24,93,.45)','rgba(91,33,182,.42)']],
+ sakura:['樱花',['rgba(249,168,212,.55)','rgba(253,186,116,.4)','rgba(216,180,254,.45)'],['rgba(157,23,77,.5)','rgba(180,83,9,.38)','rgba(107,33,168,.42)']],
+ ocean:['海洋',['rgba(56,189,248,.5)','rgba(45,212,191,.42)','rgba(129,140,248,.45)'],['rgba(3,105,161,.55)','rgba(15,118,110,.45)','rgba(67,56,202,.45)']],
+ lavender:['薰衣草',['rgba(196,181,253,.55)','rgba(244,168,220,.45)','rgba(147,197,253,.45)'],['rgba(91,33,182,.5)','rgba(157,23,109,.42)','rgba(30,64,175,.45)']],
+ graphite:['石墨',['rgba(148,163,184,.4)','rgba(203,213,225,.45)','rgba(148,163,184,.3)'],['rgba(71,85,105,.5)','rgba(51,65,85,.5)','rgba(100,116,139,.35)']],
+ none:['纯色',null,null]};
+/* 主题色:[名称,浅色下,深色下];青色 = 原来的默认 */
+const ACC={teal:['青','#0e6673','#4fb3c2'],blue:['蓝','#2563eb','#6ea8ff'],green:['绿','#15803d','#4ade80'],purple:['紫','#7c3aed','#a78bfa'],orange:['橙','#c2410c','#fb923c'],pink:['粉','#be185d','#f472b6']};
+function applyAp(){const r=document.documentElement,d=isDark();r.dataset.theme=d?'dark':'light';
+ r.style.setProperty('--tr',AP.tr/100);r.style.setProperty('--blur',AP.blur+'px');
+ const P=BGP[AP.bg]||BGP.sky;
+ if(AP.bg=='sky'||!BGP[AP.bg])['--b1','--b2','--b3'].forEach(k=>r.style.removeProperty(k));
+ else{const c=P[d?2:1]||['transparent','transparent','transparent'];c.forEach((v,i)=>r.style.setProperty('--b'+(i+1),v))}
+ const A=ACC[AP.ac];
+ if(!A||AP.ac=='teal'){r.style.removeProperty('--ac');r.style.removeProperty('--soft')}
+ else{r.style.setProperty('--ac',A[d?2:1]);r.style.setProperty('--soft','color-mix(in srgb,var(--ac) '+(d?22:14)+'%,var(--card))')}
+ try{localStorage.setItem('ap_th',r.dataset.theme)}catch{}
+ thmIcon();renderSw();sunNote()}
+const APSV=(p)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
+const ICO={sun:APSV('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
+ moon:APSV('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'),
+ rise:APSV('<path d="M12 3v3M5.6 7.6l1.8 1.8M18.4 7.6l-1.8 1.8M3 16h2.5M18.5 16H21M7 16a5 5 0 0 1 10 0M3 20h18"/>'),
+ clock:APSV('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')};
+const MODE_TXT={sun:'日出日落',auto:'跟随时间',light:'浅色',dark:'深色'};
+function thmIcon(){const d=isDark(),b=$('thm');if(!b)return;b.innerHTML=AP.mode=='sun'?ICO.rise:AP.mode=='auto'?ICO.clock:d?ICO.moon:ICO.sun;
+ b.title='外观:'+MODE_TXT[AP.mode]+((AP.mode=='sun'||AP.mode=='auto')?'(现在是'+(d?'深色':'浅色')+')':'')+',点击切换'}
+/* 右上角按钮:自动 → 跟当前相反的固定色 → 另一个固定色 → 回到自动 */
+function toggleTheme(){const m=AP.mode;
+ if(m=='sun'||m=='auto'){AP.am=m;AP.mode=isDark()?'light':'dark';AP.step=1}
+ else if(AP.step==1){AP.mode=m=='dark'?'light':'dark';AP.step=2}
+ else{AP.mode=(AP.am=='sun'||AP.am=='auto')?AP.am:'sun';AP.step=0}
+ $('a_mode').value=AP.mode;saveAp();toast('外观:'+MODE_TXT[AP.mode]+((AP.mode=='sun'||AP.mode=='auto')?'(现在是'+(isDark()?'深色':'浅色')+')':''),'ok')}
+function saveAp(){try{localStorage.setItem('ap',JSON.stringify(AP))}catch{}applyAp()}
+function loadAp(){$('a_mode').value=AP.mode;$('a_dark').value=AP.dark_from;$('a_light').value=AP.light_from;$('a_geo').value=AP.geo||'';$('a_tr').value=AP.tr;$('a_blur').value=AP.blur;
+ $('a_trv').textContent=AP.tr+'%';$('a_blurv').textContent=AP.blur+'px';renderSw();sunNote()}
+function apIn(){AP.mode=$('a_mode').value||'auto';if(AP.mode=='sun'||AP.mode=='auto'){AP.am=AP.mode;AP.step=0}
+ AP.dark_from=$('a_dark').value||AP_DEF.dark_from;AP.light_from=$('a_light').value||AP_DEF.light_from;AP.geo=$('a_geo').value.trim();
+ AP.tr=+$('a_tr').value;AP.blur=+$('a_blur').value;
+ $('a_trv').textContent=AP.tr+'%';$('a_blurv').textContent=AP.blur+'px';saveAp()}
+function apPick(k,v){AP[k]=v;saveAp()}
+function apReset(){AP.tr=AP_DEF.tr;AP.blur=AP_DEF.blur;AP.bg=AP_DEF.bg;AP.ac=AP_DEF.ac;loadAp();saveAp();toast('已恢复默认','ok')}
+function apLocate(){if(!navigator.geolocation||!window.isSecureContext)return toast('浏览器只在 https 或 localhost 下允许定位,请手动填经纬度','err');
+ navigator.geolocation.getCurrentPosition(p=>{$('a_geo').value=p.coords.latitude.toFixed(2)+','+p.coords.longitude.toFixed(2);apIn();toast('已填入当前位置','ok')},()=>toast('定位失败,请手动填经纬度','err'),{timeout:8000})}
+function sunNote(){const e=$('a_sunt');if(!e)return;const t=sunToday(),f=d=>String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+ e.textContent=t?'今天日出 '+f(t.rise)+'，日落 '+f(t.set):(AP.geo?'位置格式不对（或当地今天没有日出日落），暂按下面的时间切换':'没有填位置，暂按下面的时间切换')}
+function renderSw(){const d=isDark(),bg=$('a_bg'),ac=$('a_ac');if(!bg||!ac)return;
+ bg.innerHTML=Object.entries(BGP).map(([k,p])=>{const c=p[d?2:1],s=c?`radial-gradient(circle at 15% 20%,${c[0]},transparent 68%),radial-gradient(circle at 88% 30%,${c[1]},transparent 68%),radial-gradient(circle at 50% 105%,${c[2]},transparent 72%),var(--card)`:'var(--card)';
+  return`<button type="button" class="sw${AP.bg==k?' on':''}" style="background:${s}" onclick="apPick('bg','${k}')" title="${p[0]}"><span>${p[0]}</span></button>`}).join('');
+ ac.innerHTML=Object.entries(ACC).map(([k,p])=>`<button type="button" class="sw dot${AP.ac==k?' on':''}" style="background:${p[d?2:1]}" onclick="apPick('ac','${k}')" title="${p[0]}" aria-label="${p[0]}"></button>`).join('')}
+applyAp();loadAp();setInterval(applyAp,30000);
+setInterval(tick,2000);loadServers();tick();go('apps');
+</script></body></html>

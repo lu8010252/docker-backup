@@ -1,6 +1,18 @@
 # Docker 应用备份
 
-部署: `docker compose up -d --build`  →  http://IP:8800 (先改 docker-compose.yml 里的账号密码/备份目录)
+## 部署(不用下载源码)
+
+镜像由 GitHub Actions 自动构建,支持 amd64 / arm64 / armv7:`ghcr.io/lu8010252/docker-backup:latest`
+
+1. 在服务器上新建一个文件夹(如 1Panel 的 `/opt/1panel/apps/docker-backup`),把本仓库的 `docker-compose.yml` 内容保存进去
+   (或在 1Panel「容器 → 编排 → 创建编排」里直接粘贴)。
+2. 把 `AUTH_USER` / `AUTH_PASS` / `NOTIFY_URL` 的 `CHANGE_ME` 改成自己的值;按需修改备份输出目录(默认 `/opt/docker-backups`)。
+3. 启动:`docker compose up -d`,访问 http://IP:8800 。
+4. 更新:`docker compose pull && docker compose up -d`(1Panel 里对应「拉取镜像 → 重建」)。设置数据保存在 `./config`,更新不会丢。
+
+> 第一次使用时,如果拉取镜像提示无权限/找不到,说明镜像还没设为公开,见文末「镜像拉取失败」。
+
+想自己改代码、本地构建:克隆仓库后把 compose 里的 `image:` 一行换成 `build: .`,再 `docker compose up -d --build`。
 
 ## 架构
 基础镜像 python:3.12-alpine 支持 amd64 / arm64 / armv7,在目标机器上直接 build 即可,
@@ -132,3 +144,8 @@ ntfy 开了权限控制时,填访问令牌(Bearer);令牌保存后不会再回�
   这类备份的 `restore.sh` 只还原数据并启动原来的容器,应用本身需要先用源文件部署好。
 范围按应用保存,手动备份和自动备份都生效;备份页的记录上会标「仅应用」/「仅数据」。
 改了范围后,下一次备份会自动做一次完整备份(不接在旧的增量链后面)。
+
+## 镜像拉取失败
+- 提示 `unauthorized` / `not found`:镜像还是私有的。仓库所有者到 GitHub 个人主页 → Packages → 点开该镜像 →
+  Package settings → Change visibility 设为 Public(只需设置一次)。
+- 国内服务器拉 `ghcr.io` 很慢或超时:换用能访问 ghcr.io 的机器拉取后 `docker save` / `docker load`,或给 Docker 配置镜像加速/代理。

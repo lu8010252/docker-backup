@@ -1,6 +1,6 @@
 services:
   docker-backup:
-    build: .
+    image: ghcr.io/lu8010252/docker-backup:latest
     container_name: docker-backup
     restart: unless-stopped
     ports:
